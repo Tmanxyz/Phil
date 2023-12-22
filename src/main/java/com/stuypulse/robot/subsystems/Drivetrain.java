@@ -28,14 +28,14 @@ public class Drivetrain extends SubsystemBase {
     private final Encoder rightEncoder;
     public final AHRS Gyro;
     private int leftVoltage = 0;
-    private int rightVoltage = 0;     
+    private int rightVoltage = 0;       
     private final DoubleSolenoid gearShift = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,0,1);
     private final DifferentialDriveOdometry odometry; 
     private final Field2d field; 
-    
+    private final DifferentialDrive drivetrain;
 
     
-    public Pose2d Drivetrain() {
+    public Drivetrain() {
         // Add Motors to list
         leftMotors =
                 new CANSparkMax[] {
@@ -51,33 +51,37 @@ public class Drivetrain extends SubsystemBase {
                     new CANSparkMax(15, MotorType.kBrushless)
                 };
 
-        DifferentialDrive Drivetrain = new DifferentialDrive(
+        drivetrain = new DifferentialDrive(
             new MotorControllerGroup(leftMotors),
             new MotorControllerGroup(rightMotors)
         );
         
-        public Pose2d getPose(){
-            updateOdometry();
-            return odometry.getPoseMeters();
-        }
+       
         
         leftEncoder = new Encoder(0, 1);
         rightEncoder = new Encoder(2,3);
         
         Gyro = new AHRS(I2C.Port.kMXP);
-
-        gearShift = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 0, 0);
-        odometry = new DifferentialDriveOdometry(Gyro.getRotation2d(), 0, 0, getPose()); 
+        odometry = new DifferentialDriveOdometry(Gyro.getRotation2d(), 0, 0, new Pose2d()); 
         field = new Field2d();
 
     }
     
+    public Pose2d getPose(){ 
+        updateOdometry();
+        return odometry.getPoseMeters(); 
+    }
+
     public void tankDrive(double leftSpeed, double rightSpeed) {
         drivetrain.tankDrive(leftSpeed, rightSpeed); 
     }
 
     public void arcadeDrive(double speed, double rotation) {
-        drivetrain.arcade
+        drivetrain.arcadeDrive(speed, rotation); 
+    }
+
+    public void curvatureDrive(double speed, double rotation, boolean isQuickTurn) {
+        drivetrain.curvatureDrive(speed, rotation, isQuickTurn); 
     }
 
     public double getAngle(){
@@ -126,12 +130,16 @@ public void updateOdometry() {
 public Field2d getField() {
     return field;
 }
+public void stop(){
+    drivetrain.stopMotor();
+}
 
 public void reset(){
     leftEncoder.reset();
     rightEncoder.reset();
     
 }
+
 
 @Override
 public void periodic(){
