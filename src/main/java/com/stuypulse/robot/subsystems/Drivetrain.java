@@ -4,12 +4,18 @@ import com.kauailabs.navx.frc.AHRS;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.I2C;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorController;
+import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -24,9 +30,12 @@ public class Drivetrain extends SubsystemBase {
     private int leftVoltage = 0;
     private int rightVoltage = 0;     
     private final DoubleSolenoid gearShift = new DoubleSolenoid(PneumaticsModuleType.CTREPCM,0,1);
+    private final DifferentialDriveOdometry odometry; 
+    private final Field2d field; 
+    
 
     
-    public Drivetrain() {
+    public Pose2d Drivetrain() {
         // Add Motors to list
         leftMotors =
                 new CANSparkMax[] {
@@ -41,10 +50,36 @@ public class Drivetrain extends SubsystemBase {
                     new CANSparkMax(14, MotorType.kBrushless),
                     new CANSparkMax(15, MotorType.kBrushless)
                 };
+
+        DifferentialDrive Drivetrain = new DifferentialDrive(
+            new MotorControllerGroup(leftMotors),
+            new MotorControllerGroup(rightMotors)
+        );
+        
+        public Pose2d getPose(){
+            updateOdometry();
+            return odometry.getPoseMeters();
+        }
+        
         leftEncoder = new Encoder(0, 1);
         rightEncoder = new Encoder(2,3);
+        
         Gyro = new AHRS(I2C.Port.kMXP);
+
+        gearShift = new DoubleSolenoid(PneumaticsModuleType.CTREPCM, 0, 0);
+        odometry = new DifferentialDriveOdometry(Gyro.getRotation2d(), 0, 0, getPose()); 
+        field = new Field2d();
+
     }
+    
+    public void tankDrive(double leftSpeed, double rightSpeed) {
+        drivetrain.tankDrive(leftSpeed, rightSpeed); 
+    }
+
+    public void arcadeDrive(double speed, double rotation) {
+        drivetrain.arcade
+    }
+
     public double getAngle(){
         return Gyro.getAngle();
     }
@@ -84,10 +119,27 @@ public void tankDriveVolts(double left, double right){
         motor.setVoltage(rightVoltage);
     }
 }
+public void updateOdometry() {
+    odometry.update(Gyro.getRotation2d(), getLeftDistance(), getRightDistance()); 
+}
+
+public Field2d getField() {
+    return field;
+}
+
+public void reset(){
+    leftEncoder.reset();
+    rightEncoder.reset();
+    
+}
 
 @Override
 public void periodic(){
-    SmartDashboard.putNumber("Drivetrain / rightMotor", getRightVoltage());
+    updateOdometry(); 
+    field.setRobotPose(odometry.getPoseMeters()); 
+    SmartDashboard.putData("Field", getField());
+    
+    SmartDashboard.putNumber("Drivetrain / rightMotoricate modifier for the method periodic in", getRightVoltage());
     SmartDashboard.putNumber("Drivetrain / leftMotor", getLeftVoltage());
     SmartDashboard.putNumber("Drivetrain / Left Distance", getLeftDistance());
     SmartDashboard.putNumber("Drivetrain / Right Distance", getRightDistance());
